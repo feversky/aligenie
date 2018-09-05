@@ -1,11 +1,14 @@
-DOMAIN = 'aligenie'
+MAIN = 'aligenie'
 
 import asyncio
 import json
 import logging
 
-from aiohttp import web
+import aiohttp
 import async_timeout
+
+import voluptuous as vol
+from homeassistant.helpers import config_validation as cv
 
 from homeassistant.bootstrap import DATA_LOGGING
 from homeassistant.components.http import HomeAssistantView
@@ -26,37 +29,47 @@ from homeassistant.helpers.service import async_get_all_descriptions
 from homeassistant.helpers.state import AsyncTrackStates
 from homeassistant.helpers.json import JSONEncoder
 
+from urllib.request import urlopen
+
+EXPIRE_HOURS = 'expire_hours'
+DOMAIN = 'aligenie'
+
+CONFIG_SCHEMA = vol.Schema({
+    DOMAIN: vol.Schema({
+        vol.Optional(EXPIRE_HOURS): cv.positive_int
+    })
+}, extra=vol.ALLOW_EXTRA)
+
 _LOGGER = logging.getLogger(__name__)
 places = []
 _auth = None
+_expire_hours = None
 
 async def async_create_refresh_token(
         user: models.User, client_id: Optional[str] = None) \
         -> models.RefreshToken:
     """Create a new token for a user."""
     global _auth
+    _LOGGER.info('access token expiration: %d hours', _expire_hours)
     refresh_token = models.RefreshToken(user=user, 
                                         client_id=client_id,
-                                        access_token_expiration = timedelta(days=7))
+                                        access_token_expiration = timedelta(hours=_expire_hours))
     user.refresh_tokens[refresh_token.id] = refresh_token
     _auth._store._async_schedule_save()
     return refresh_token
 
 def setup(hass, config):
     global _auth
-    import subprocess
-    # hass.states.set('hello.world', 'Paulus')
+    global _expire_hours
+    
+    conf = config[DOMAIN]
+    _expire_hours = conf.get(EXPIRE_HOURS)
+    if _expire_hours is not None:
+        _auth = hass.auth
+        _auth._store.async_create_refresh_token = async_create_refresh_token
+        hass.http.register_view(AliGenieGateView)
 
-    # homeassistant.auth.const.ACCESS_TOKEN_EXPIRATION = timedelta(minutes=60)
-    _auth = hass.auth
-    _auth._store.async_create_refresh_token = async_create_refresh_token
-    hass.http.register_view(AliGenieGateView)
-    
-    command = 'curl https://open.bot.tmall.com/oauth/api/placelist'
-    p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    result, err = p.communicate()
-    places = json.loads(result)['data']
-    
+    places = json.loads(urlopen('https://open.bot.tmall.com/oauth/api/placelist').read().decode('utf-8'))['data']
     # aliases = json.loads(urlopen('https://open.bot.tmall.com/oauth/api/aliaslist').read().decode('utf-8'))['data']
     # aliases.append({'key': '电视', 'value': ['电视机']})
     return True
@@ -101,6 +114,7 @@ async def handleRequest(request, data):
     payload = data['payload']
     properties = None
     name = header['name']
+    _LOGGER.info("recevied data: %s", data)
 
     # copied from async_validate_auth_header      
     hass = request.app['hass']  
@@ -135,6 +149,7 @@ async def handleRequest(request, data):
     response = {'header': header, 'payload': result}
     if properties:
         response['properties'] = properties
+    _LOGGER.info("respnose: %s", response)
     return response
 
 #
