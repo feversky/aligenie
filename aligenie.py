@@ -15,21 +15,41 @@ from homeassistant.const import (
     URL_API_CONFIG, URL_API_DISCOVERY_INFO, URL_API_ERROR_LOG, URL_API_EVENTS,
     URL_API_SERVICES, URL_API_STATES, URL_API_STATES_ENTITY, URL_API_STREAM,
     URL_API_TEMPLATE, __version__)
+import homeassistant.auth.models as models
+from typing import Optional
+from datetime import timedelta
+
 import homeassistant.core as ha
 from homeassistant.exceptions import TemplateError
 from homeassistant.helpers import template
 from homeassistant.helpers.service import async_get_all_descriptions
 from homeassistant.helpers.state import AsyncTrackStates
 from homeassistant.helpers.json import JSONEncoder
-from homeassistant.core import State
 
 _LOGGER = logging.getLogger(__name__)
 places = []
+_auth = None
+
+async def async_create_refresh_token(
+        user: models.User, client_id: Optional[str] = None) \
+        -> models.RefreshToken:
+    """Create a new token for a user."""
+    global _auth
+    refresh_token = models.RefreshToken(user=user, 
+                                        client_id=client_id,
+                                        access_token_expiration = timedelta(days=7))
+    user.refresh_tokens[refresh_token.id] = refresh_token
+    _auth._store._async_schedule_save()
+    return refresh_token
 
 def setup(hass, config):
+    global _auth
     import subprocess
     # hass.states.set('hello.world', 'Paulus')
 
+    # homeassistant.auth.const.ACCESS_TOKEN_EXPIRATION = timedelta(minutes=60)
+    _auth = hass.auth
+    _auth._store.async_create_refresh_token = async_create_refresh_token
     hass.http.register_view(AliGenieGateView)
     
     command = 'curl https://open.bot.tmall.com/oauth/api/placelist'
