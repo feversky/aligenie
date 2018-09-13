@@ -58,7 +58,7 @@ async def async_create_refresh_token(
     _auth._store._async_schedule_save()
     return refresh_token
 
-def setup(hass, config):
+async def async_setup(hass, config):
     global _auth
     global _expire_hours
     
