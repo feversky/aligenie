@@ -204,7 +204,7 @@ def discoveryDevice(request):
                         sensor['model'] += ' ' + friendly_name
                         # SHIT, length limition in deviceId: sensor['deviceId'] += '_' + entity_id
                     else:
-                        log('SKIP: ' + entity_id)
+                        _LOGGER.info('SKIP: ' + entity_id)
                     break
             if deviceType is None:
                 continue
