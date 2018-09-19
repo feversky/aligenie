@@ -17,7 +17,8 @@ from homeassistant.const import (
     HTTP_CREATED, HTTP_NOT_FOUND, MATCH_ALL, URL_API, URL_API_COMPONENTS,
     URL_API_CONFIG, URL_API_DISCOVERY_INFO, URL_API_ERROR_LOG, URL_API_EVENTS,
     URL_API_SERVICES, URL_API_STATES, URL_API_STATES_ENTITY, URL_API_STREAM,
-    URL_API_TEMPLATE, __version__)
+    URL_API_TEMPLATE, MAJOR_VERSION, MINOR_VERSION, __version__)
+from homeassistant.auth.const import ACCESS_TOKEN_EXPIRATION
 import homeassistant.auth.models as models
 from typing import Optional
 from datetime import timedelta
@@ -45,7 +46,7 @@ places = []
 _auth = None
 _expire_hours = None
 
-async def async_create_refresh_token(
+async def async_create_refresh_token77(
         user: models.User, client_id: Optional[str] = None) \
         -> models.RefreshToken:
     """Create a new token for a user."""
@@ -58,6 +59,34 @@ async def async_create_refresh_token(
     _auth._store._async_schedule_save()
     return refresh_token
 
+async def async_create_refresh_token78(
+        user: models.User, client_id: Optional[str] = None,
+        client_name: Optional[str] = None,
+        client_icon: Optional[str] = None,
+        token_type: str = models.TOKEN_TYPE_NORMAL,
+        access_token_expiration: timedelta = ACCESS_TOKEN_EXPIRATION) \
+        -> models.RefreshToken:
+    if access_token_expiration == ACCESS_TOKEN_EXPIRATION:
+        access_token_expiration = timedelta(hours=_expire_hours)
+    _LOGGER.info('access token expiration: %d hours', _expire_hours)
+    """Create a new token for a user."""
+    kwargs = {
+        'user': user,
+        'client_id': client_id,
+        'token_type': token_type,
+        'access_token_expiration': access_token_expiration
+    }  # type: Dict[str, Any]
+    if client_name:
+        kwargs['client_name'] = client_name
+    if client_icon:
+        kwargs['client_icon'] = client_icon
+
+    refresh_token = models.RefreshToken(**kwargs)
+    user.refresh_tokens[refresh_token.id] = refresh_token
+
+    _auth._store._async_schedule_save()
+    return refresh_token
+
 async def async_setup(hass, config):
     global _auth
     global _expire_hours
@@ -66,7 +95,10 @@ async def async_setup(hass, config):
     _expire_hours = conf.get(EXPIRE_HOURS)
     if _expire_hours is not None:
         _auth = hass.auth
-        _auth._store.async_create_refresh_token = async_create_refresh_token
+        if MAJOR_VERSION == 0 and MINOR_VERSION <= 77:
+            _auth._store.async_create_refresh_token = async_create_refresh_token77
+        else:
+            _auth._store.async_create_refresh_token = async_create_refresh_token78
         hass.http.register_view(AliGenieGateView)
 
     places = json.loads(urlopen('https://open.bot.tmall.com/oauth/api/placelist').read().decode('utf-8'))['data']
