@@ -80,7 +80,7 @@ async def async_setup(hass, config):
             _hass.auth._store.async_create_refresh_token = async_create_refresh_token77
         else:
             _hass.auth._store.async_create_refresh_token = async_create_refresh_token78
-        _hass.http.register_view(AliGenieGateView)
+    _hass.http.register_view(AliGenieGateView)
 
     global _places, _aliases
     _places  = json.loads(urlopen('https://open.bot.tmall.com/oauth/api/placelist').read().decode('utf-8'))['data']
