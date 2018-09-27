@@ -1,4 +1,3 @@
-
 import json
 import logging
 
@@ -236,8 +235,11 @@ async def controlDevice(name, payload):
     data = {"entity_id": entity_id }
     if domain == 'cover':
         service = 'close_cover' if service == 'turn_off' else 'open_cover'
+    elif domain == 'vacuum':
+        service = 'return_to_base' if service == 'turn_off' else 'start'
 
     with AsyncTrackStates(_hass) as changed_states:
+        _LOGGER.debug("call service {1} in domain {0} with data {2}", domain, service, data)
         result = await _hass.services.async_call(domain, service, data, True)
 
     return {} if result else errorResult('IOT_DEVICE_OFFLINE')
