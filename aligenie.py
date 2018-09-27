@@ -1,3 +1,4 @@
+
 import json
 import logging
 
@@ -71,10 +72,10 @@ async def async_create_refresh_token78(
     return refresh_token
 
 async def async_setup(hass, config):
-    global _hass
-    _hass = hass
+    global _hass, _expire_hours
+    _hass         = hass
+    _expire_hours = config[DOMAIN].get(EXPIRE_HOURS)
     
-    conf = config[DOMAIN]
     if _expire_hours is not None:
         if MAJOR_VERSION == 0 and MINOR_VERSION <= 77:
             _hass.auth._store.async_create_refresh_token = async_create_refresh_token77
