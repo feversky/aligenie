@@ -167,7 +167,7 @@ def discoveryDevice():
     for state in states:
         attributes = state.attributes
 
-        if attributes.get('hidden'):
+        if attributes.get('hidden') or attributes.get('hagenie_hidden'):
             continue
 
         friendly_name = attributes.get('friendly_name')
@@ -219,7 +219,8 @@ def discoveryDevice():
             'brand': 'HomeAssistant',
             'icon': 'https://home-assistant.io/demo/favicon-192x192.png',
             'properties': [prop],
-            'actions': ['TurnOn', 'TurnOff', 'Query', action] if action == 'QueryPowerState' else ['Query', action],
+            'actions': ALL_ACTIONS + ['Query'] if action == 'QueryPowerState' else ['Query', action],
+            #'actions': ['TurnOn', 'TurnOff', 'Query', action] if action == 'QueryPowerState' else ['Query', action],
             #'extensions':{'extension1':'','extension2':''}
             })
 
@@ -228,18 +229,21 @@ def discoveryDevice():
             #_LOGGER.info(json.dumps(sensor, indent=2, ensure_ascii=False))
     return {'devices': devices}
 
-async def controlDevice(name, payload):
+async def controlDevice(action, payload):
     entity_id = payload['deviceId']
-    service = getControlService(name)
     domain = entity_id[:entity_id.find('.')]
     data = {"entity_id": entity_id }
-    if domain == 'cover':
-        service = 'close_cover' if service == 'turn_off' else 'open_cover'
-    elif domain == 'vacuum':
-        service = 'return_to_base' if service == 'turn_off' else 'start'
+    if domain in TRANSLATIONS.keys():
+        translation = TRANSLATIONS[domain][action]
+        if callable(translation):
+            service, content = translation(_hass.states.get(entity_id), payload)
+            data.update(content)
+        else:
+            service = translation
+    else:
+        service = getControlService(action)
 
     with AsyncTrackStates(_hass) as changed_states:
-        _LOGGER.debug("call service {1} in domain {0} with data {2}", domain, service, data)
         result = await _hass.services.async_call(domain, service, data, True)
 
     return {} if result else errorResult('IOT_DEVICE_OFFLINE')
@@ -332,6 +336,59 @@ EXCLUDE_DOMAINS = [
     'group',
     'zone',
     ]
+
+ALL_ACTIONS = [
+    'TurnOn',
+    'TurnOff',
+    'SelectChannel',
+    'AdjustUpChannel',
+    'AdjustDownChannel',
+    'AdjustUpVolume',
+    'AdjustDownVolume',
+    'SetVolume',
+    'SetMute',
+    'CancelMute',
+    'Play',
+    'Pause',
+    'Continue',
+    'Next',
+    'Previous',
+    'SetBrightness',
+    'AdjustUpBrightness',
+    'AdjustDownBrightness',
+    'SetTemperature',
+    'AdjustUpTemperature',
+    'AdjustDownTemperature',
+    'SetWindSpeed',
+    'AdjustUpWindSpeed',
+    'AdjustDownWindSpeed',
+    'SetMode',
+    'SetColor',
+    'OpenFunction',
+    'CloseFunction',
+    'Cancel',
+    'CancelMode']
+
+
+TRANSLATIONS = {
+    'cover': {
+        'TurnOn':  'open_cover',
+        'TurnOff': 'close_cover'
+    },
+    'vacuum': {
+        'TurnOn':  'start',
+        'TurnOff': 'return_to_base'
+    },
+    'light': {
+        'TurnOn':  'turn_on',
+        'TurnOff': 'turn_off',
+        'SetBrightness':        lambda state, payload: ('turn_on', {'brightness_pct': payload['value']}),
+        'AdjustUpBrightness':   lambda state, payload: ('turn_on', {'brightness_pct': min(state.attributes['brightness_pct'] + payload['value'], 100)}),
+        'AdjustDownBrightness': lambda state, payload: ('turn_on', {'brightness_pct': max(state.attributes['brightness_pct'] - payload['value'], 0)}),
+        'SetColor':             lambda state, payload: ('turn_on', {"color_name": payload['value']})
+    },
+
+}
 
 # http://doc-bot.tmall.com/docs/doc.htm?treeId=393&articleId=108271&docType=1
 def guessDeviceType(entity_id, attributes):
