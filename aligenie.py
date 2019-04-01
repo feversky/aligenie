@@ -217,7 +217,7 @@ def discoveryDevice():
             'zone': zone,
             'model': friendly_name,
             'brand': 'HomeAssistant',
-            'icon': 'https://home-assistant.io/demo/favicon-192x192.png',
+            'icon': 'https://home-assistant.io/images/favicon-192x192.png',
             'properties': [prop],
             'actions': ALL_ACTIONS + ['Query'] if action == 'QueryPowerState' else ['Query', action],
             #'actions': ['TurnOn', 'TurnOff', 'Query', action] if action == 'QueryPowerState' else ['Query', action],
