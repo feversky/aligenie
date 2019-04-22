@@ -388,7 +388,15 @@ TRANSLATIONS = {
         'AdjustDownBrightness': lambda state, payload: ('turn_on', {'brightness_pct': max(state.attributes['brightness'] * 100 // 255 - int(payload['value']), 0)}),
         'SetColor':             lambda state, payload: ('turn_on', {"color_name": payload['value']})
     },
-
+    'climate': {
+        'TurnOn': 'turn_on',
+        'TurnOff': 'turn_off',
+        'SetTemperature': lambda state, payload: ('set_temperature', {'temperature': int(payload['value'])}),
+        'AdjustUpTemperature': lambda state, payload: ('set_temperature', {'temperature': min(state.attributes['temperature'] + int(payload['value']), state.attributes['max_temp'])}),
+        'AdjustDownTemperature': lambda state, payload: ('set_temperature', {'temperature': max(state.attributes['temperature'] - int(payload['value']), state.attributes['min_temp'])}),
+        'SetMode': lambda state, payload: ('set_operation_mode', {'operation_mode': mapping({'cold': 'cool'}, payload['value'])}),
+        'SetWindSpeed': lambda state, payload: ('set_fan_mode', {'fan_mode': mapping({'max': 'high', 'min': 'low'}, payload['value'])}),
+    },
 }
 
 # http://doc-bot.tmall.com/docs/doc.htm?treeId=393&articleId=108271&docType=1
