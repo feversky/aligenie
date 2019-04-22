@@ -217,7 +217,7 @@ def discoveryDevice():
             'zone': zone,
             'model': friendly_name,
             'brand': 'HomeAssistant',
-            'icon': 'https://home-assistant.io/demo/favicon-192x192.png',
+            'icon': 'https://home-assistant.io/images/favicon-192x192.png',
             'properties': [prop],
             'actions': ALL_ACTIONS + ['Query'] if action == 'QueryPowerState' else ['Query', action],
             #'actions': ['TurnOn', 'TurnOff', 'Query', action] if action == 'QueryPowerState' else ['Query', action],
@@ -275,7 +275,7 @@ def queryDevice(name, payload):
     else:
         state = _hass.states.get(deviceId)
         if state is not None or state.state != 'unavailable':
-            return {'name':'powerstate', 'value':state.state}
+            return {'name':'powerstate', 'value':'off' if state.state == 'off' else 'on'}
     return errorResult('IOT_DEVICE_OFFLINE')
 
 def getControlService(action):
@@ -369,6 +369,7 @@ ALL_ACTIONS = [
     'Cancel',
     'CancelMode']
 
+mapping = lambda dict, key: dict[key] if key in dict else key
 
 TRANSLATIONS = {
     'cover': {
@@ -382,12 +383,20 @@ TRANSLATIONS = {
     'light': {
         'TurnOn':  'turn_on',
         'TurnOff': 'turn_off',
-        'SetBrightness':        lambda state, payload: ('turn_on', {'brightness_pct': payload['value']}),
-        'AdjustUpBrightness':   lambda state, payload: ('turn_on', {'brightness_pct': min(state.attributes['brightness_pct'] + payload['value'], 100)}),
-        'AdjustDownBrightness': lambda state, payload: ('turn_on', {'brightness_pct': max(state.attributes['brightness_pct'] - payload['value'], 0)}),
+        'SetBrightness':        lambda state, payload: ('turn_on', {'brightness_pct': mapping({'max': 100, 'min': 1}, payload['value'])}),
+        'AdjustUpBrightness':   lambda state, payload: ('turn_on', {'brightness_pct': min(state.attributes['brightness'] * 100 // 255 + int(payload['value']), 100)}),
+        'AdjustDownBrightness': lambda state, payload: ('turn_on', {'brightness_pct': max(state.attributes['brightness'] * 100 // 255 - int(payload['value']), 0)}),
         'SetColor':             lambda state, payload: ('turn_on', {"color_name": payload['value']})
     },
-
+    'climate': {
+        'TurnOn': 'turn_on',
+        'TurnOff': 'turn_off',
+        'SetTemperature': lambda state, payload: ('set_temperature', {'temperature': int(payload['value'])}),
+        'AdjustUpTemperature': lambda state, payload: ('set_temperature', {'temperature': min(state.attributes['temperature'] + int(payload['value']), state.attributes['max_temp'])}),
+        'AdjustDownTemperature': lambda state, payload: ('set_temperature', {'temperature': max(state.attributes['temperature'] - int(payload['value']), state.attributes['min_temp'])}),
+        'SetMode': lambda state, payload: ('set_operation_mode', {'operation_mode': mapping({'cold': 'cool'}, payload['value'])}),
+        'SetWindSpeed': lambda state, payload: ('set_fan_mode', {'fan_mode': mapping({'max': 'high', 'min': 'low'}, payload['value'])}),
+    },
 }
 
 # http://doc-bot.tmall.com/docs/doc.htm?treeId=393&articleId=108271&docType=1
