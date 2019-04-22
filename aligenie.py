@@ -369,6 +369,7 @@ ALL_ACTIONS = [
     'Cancel',
     'CancelMode']
 
+mapping = lambda dict, key: dict[key] if key in dict else key
 
 TRANSLATIONS = {
     'cover': {
