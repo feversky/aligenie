@@ -397,6 +397,13 @@ TRANSLATIONS = {
         'SetMode': lambda state, payload: ('set_operation_mode', {'operation_mode': mapping({'cold': 'cool'}, payload['value'])}),
         'SetWindSpeed': lambda state, payload: ('set_fan_mode', {'fan_mode': mapping({'max': 'high', 'min': 'low'}, payload['value'])}),
     },
+    'fan': {
+        'TurnOn': 'turn_on',
+        'TurnOff': 'turn_off',
+        'SetWindSpeed': lambda state, payload: ('set_speed', {'speed':mapping({'max': 'high', 'min': 'low'}, payload['value'])}),
+        'OpenSwing': lambda state, payload: ('oscillate', {'oscillating': True}),
+        'CloseSwing': lambda state, payload: ('oscillate', {'oscillating': False}),
+    }
 }
 
 # http://doc-bot.tmall.com/docs/doc.htm?treeId=393&articleId=108271&docType=1
